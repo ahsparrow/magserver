@@ -1,8 +1,6 @@
 import asyncio
 import os
 
-import machine
-
 # End of touch timeout
 READ_TIMEOUT = 5
 
@@ -117,7 +115,8 @@ class Logger:
         os.rmdir(log_path)
 
 
-uart = machine.UART(1, tx=4, rx=5)
-logger = Logger(uart, "/log")
+# import machine
+# uart = machine.UART(1, tx=4, rx=5)
+# logger = Logger(uart, "/log")
 
-asyncio.run(logger.log())
+# asyncio.run(logger.log())
