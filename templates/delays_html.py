@@ -19,7 +19,8 @@ def render(delays):
             <label>Bell #"""
         yield str(i + 1)
         yield """</label>
-          <input type=\"text\" name=\"bell"""
+            <input type=\"text\" inputmode=\"numeric\" pattern=\"[0-9]"""
+        yield """{1,3}\" required name=\"bell"""
         yield str(i)
         yield """\" value="""
         yield str(delays[i])

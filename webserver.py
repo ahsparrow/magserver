@@ -1,12 +1,25 @@
-from microdot import Microdot, redirect, send_file
+import os
+
+from microdot import Microdot, Response, redirect, send_file
 from microdot.utemplate import Template
 
+S_IFDIR = 0x4000
+
 app = Microdot()
+Response.default_content_type = "text/html"
 
 
 @app.route("/")
 async def index(request):
-    return Template("index.html").render(), {"Content-Type": "text/html"}
+    statvfs = os.statvfs(".")
+    free = statvfs[0] * statvfs[4]
+
+    dirs = list(filter(lambda d: os.stat("logs/" + d)[0] & S_IFDIR, os.listdir("logs")))
+    dirs.sort()
+
+    logcounts = [len(os.listdir("logs/" + d)) for d in dirs]
+
+    return Template("index.tpl").render(dirs=dirs, logcounts=logcounts, free=free)
 
 
 @app.route("/static/<path:path>")
@@ -20,7 +33,7 @@ async def static(request, path):
 @app.route("/delays", methods=["GET"])
 async def get_delays(request):
     delays = [100, 200, 300, 400, 500, 600]
-    return Template("delays.html").render(delays=delays), {"Content-Type": "text/html"}
+    return Template("delays.html").render(delays=delays)
 
 
 @app.route("/delays", methods=["POST"])

@@ -1,3 +1,3 @@
-from microdot.microdot import Microdot, redirect, send_file
+from microdot.microdot import Microdot, Response, redirect, send_file
 
-__all__ = ["Microdot", "redirect", "send_file"]
+__all__ = ["Microdot", "Response", "redirect", "send_file"]

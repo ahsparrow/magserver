@@ -1,15 +1,44 @@
-<!DOCTYPE html>
+{% args dirs, logcounts, free %}
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>CANBell</title>
     <link rel="stylesheet" href="/static/pure-min.css">
+    <link rel="stylesheet" href="/static/grids-responsive-min.css">
+    <link rel="stylesheet" href="/static/style.css">
   </head>
   <body>
-    <p>Hello World!</p>
-    <button class="pure-button pure-button-primary">Press me!</button>
+    <div class="pure-menu pure-menu-horizontal">
+      <ul class="pure-menu-list">
+        <li class="pure-menu-item pure-menu-selected">
+          <a href="#" class="pure-menu-link">Logs</a>
+        </li>
+        <li class="pure-menu-item">
+          <a href="/delays" class="pure-menu-link">Delays</a>
+        </li>
+      </ul>
+    </div>
+    <hr>
+    <div class="contents">
+      <form class="pure-form pure-form-aligned" action="/download">
+          {% for i in range(len(dirs)) %}
+            <div class="pure-control-group">
+              <label class="pure-radio">
+                {{dirs[i]}} ({{logcounts[i]}})
+              </label>
+              <input type="radio" name="logRadios">
+            </div>
+          {% endfor %}
+          <div class="pure-controls">
+            <button name="action" value="download" type="submit" class="pure-button pure-button-primary">Download</button>
+          </div>
+      </form>
+      <div class="free-info">
+        <p>{{free // 1000}} kB free</p>
+      </div>
+    </div>
   </body>
 </html>
 
