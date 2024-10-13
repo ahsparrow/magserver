@@ -30,12 +30,12 @@
         {% for i in range(len(delays)) %}
           <div class="pure-control-group">
             <label>Bell #{{i + 1}}</label>
-            <input type="text" inputmode="numeric" pattern="[0-9]{1,3}" required name="bell{{i}}" value={{delays[i]}} />
+            <input type="text" inputmode="numeric" pattern="[0-9]{1,3}" required autocomplete="off" name="bell{{i}}" value={{delays[i]}} />
           </div>
         {% endfor %}
         <div class="pure-controls">
-          <button name="action" value="cancel" type="submit" class="pure-button pure-button-secondary">Cancel</button>
-          <button name="action" value="submit" type="submit" class="pure-button pure-button-primary">Set</button>
+          <button name="action" value="ok" type="submit" class="pure-button pure-button-primary">OK</button>
+          <button name="action" value="cancel" type="reset" class="pure-button pure-button-secondary">Cancel</button>
         </div>
       </form>
     </div>

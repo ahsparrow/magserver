@@ -5,6 +5,8 @@ from microdot.utemplate import Template
 
 S_IFDIR = 0x4000
 
+delays = [100, 200, 300, 400, 500, 600]
+
 app = Microdot()
 Response.default_content_type = "text/html"
 
@@ -32,20 +34,19 @@ async def static(request, path):
 
 @app.route("/delays", methods=["GET"])
 async def get_delays(request):
-    delays = [100, 200, 300, 400, 500, 600]
     return Template("delays.tpl").render(delays=delays)
 
 
 @app.route("/delays", methods=["POST"])
 async def set_delays(request):
-    if request.form["action"] == "submit":
+    if request.form["action"] == "ok":
+        global delays
         delays = [
             request.form["bell{}".format(i)] for i in range(len(request.form) - 1)
         ]
         print(delays)
-        return redirect("/")
-    else:
-        return redirect("/delays")
+
+    return redirect("/delays")
 
 
 if __name__ == "__main__":

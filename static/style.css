@@ -12,6 +12,10 @@ header {
   color: #fff;
 }
 
+.pure-button-primary {
+  background: #2fa4e7;
+}
+
 .contents {
   margin-left: 8px;
 }
