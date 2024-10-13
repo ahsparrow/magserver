@@ -1,5 +1,5 @@
 {% args delays %}
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8">
@@ -7,11 +7,26 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>CANBell - Sensor Delays</title>
     <link rel="stylesheet" href="/static/pure-min.css">
+    <link rel="stylesheet" href="/static/style.css">
   </head>
   <body>
-    <form class="pure-form pure-form-aligned" action="/delays" method="post">
-      <legend>Sensor Delays (ms)</legend>
-      <fieldset>
+    <header>
+      CANBell
+    </header>
+    <div class="pure-menu pure-menu-horizontal">
+      <ul class="pure-menu-list">
+        <li class="pure-menu-item">
+          <a href="/" class="pure-menu-link">Logs</a>
+        </li>
+        <li class="pure-menu-item pure-menu-selected">
+          <a href="#" class="pure-menu-link">Delays</a>
+        </li>
+      </ul>
+    </div>
+    <hr>
+    <div class="contents">
+      <form class="pure-form pure-form-aligned" action="/delays" method="post">
+        <legend>Sensor Delays (ms)</legend>
         {% for i in range(len(delays)) %}
           <div class="pure-control-group">
             <label>Bell #{{i + 1}}</label>
@@ -22,8 +37,8 @@
           <button name="action" value="cancel" type="submit" class="pure-button pure-button-secondary">Cancel</button>
           <button name="action" value="submit" type="submit" class="pure-button pure-button-primary">Set</button>
         </div>
-      </fieldset>
-    </form>
+      </form>
+    </div>
   </body>
 </html>
 

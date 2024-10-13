@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="/static/style.css">
   </head>
   <body>
+    <header>
+      CANBell
+    </header>
     <div class="pure-menu pure-menu-horizontal">
       <ul class="pure-menu-list">
         <li class="pure-menu-item pure-menu-selected">
@@ -22,6 +25,7 @@
     <hr>
     <div class="contents">
       <form class="pure-form pure-form-aligned" action="/download">
+        <legend>Session Logs</legend>
           {% for i in range(len(dirs)) %}
             <div class="pure-control-group">
               <label class="pure-radio">
