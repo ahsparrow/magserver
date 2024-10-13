@@ -31,11 +31,11 @@
               <label class="pure-radio">
                 {{dirs[i]}} ({{logcounts[i]}})
               </label>
-              <input type="radio" name="logRadios">
+              <input type="radio" value="{{dirs[i]}}" {{"checked" if i == 0 else ""}} autocomplete="off" name="log">
             </div>
           {% endfor %}
           <div class="pure-controls">
-            <button name="action" value="download" type="submit" class="pure-button pure-button-primary">Download</button>
+            <button type="submit" class="pure-button pure-button-primary">Download</button>
           </div>
       </form>
       <div class="free-info">

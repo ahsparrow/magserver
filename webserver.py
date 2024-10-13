@@ -32,21 +32,26 @@ async def static(request, path):
     return send_file("static/" + path, max_age=86400)
 
 
-@app.route("/delays", methods=["GET"])
+@app.get("/delays")
 async def get_delays(request):
     return Template("delays.tpl").render(delays=delays)
 
 
-@app.route("/delays", methods=["POST"])
+@app.post("/delays")
 async def set_delays(request):
     if request.form["action"] == "ok":
         global delays
         delays = [
-            request.form["bell{}".format(i)] for i in range(len(request.form) - 1)
+            request.form.get("bell{}".format(i)) for i in range(len(request.form) - 1)
         ]
         print(delays)
 
     return redirect("/delays")
+
+
+@app.get("/download")
+async def download(request):
+    print(request.args.get("log"))
 
 
 if __name__ == "__main__":
