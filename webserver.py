@@ -33,7 +33,7 @@ async def static(request, path):
 @app.route("/delays", methods=["GET"])
 async def get_delays(request):
     delays = [100, 200, 300, 400, 500, 600]
-    return Template("delays.html").render(delays=delays)
+    return Template("delays.tpl").render(delays=delays)
 
 
 @app.route("/delays", methods=["POST"])
