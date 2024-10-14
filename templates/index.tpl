@@ -25,18 +25,20 @@
     <hr>
     <div class="contents">
       <form class="pure-form pure-form-aligned" action="/download">
-        <legend>Session Logs</legend>
-          {% for i in range(len(dirs)) %}
-            <div class="pure-control-group">
-              <label class="pure-radio">
-                {{dirs[i]}} ({{logcounts[i]}})
-              </label>
-              <input type="radio" value="{{dirs[i]}}" {{"checked" if i == 0 else ""}} autocomplete="off" name="log">
+        <fieldset>
+          <legend>Session Logs</legend>
+            {% for i in range(len(dirs)) %}
+              <div class="pure-control-group">
+                <label class="pure-radio">
+                  {{dirs[i]}} ({{logcounts[i]}})
+                </label>
+                <input type="radio" value="{{dirs[i]}}" {{"checked" if i == 0 else ""}} autocomplete="off" name="log">
+              </div>
+            {% endfor %}
+            <div class="pure-controls">
+              <button type="submit" class="pure-button pure-button-primary">Download</button>
             </div>
-          {% endfor %}
-          <div class="pure-controls">
-            <button type="submit" class="pure-button pure-button-primary">Download</button>
-          </div>
+          </fieldset>
       </form>
       <div class="free-info">
         <p>{{free // 1000}} kB free</p>

@@ -39,12 +39,14 @@ async def get_delays(request):
 
 @app.post("/delays")
 async def set_delays(request):
+    global delays
     if request.form["action"] == "ok":
-        global delays
         delays = [
             request.form.get("bell{}".format(i)) for i in range(len(request.form) - 1)
         ]
         print(delays)
+    else:
+        delays = [100, 200, 300, 400, 500, 600]
 
     return redirect("/delays")
 

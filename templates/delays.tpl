@@ -25,17 +25,19 @@
     <hr>
     <div class="contents">
       <form class="pure-form pure-form-aligned" action="/delays" method="post">
-        <legend>Sensor Delays (ms)</legend>
-        {% for i in range(len(delays)) %}
-          <div class="pure-control-group">
-            <label>Bell #{{i + 1}}</label>
-            <input type="text" inputmode="numeric" pattern="[0-9]{1,3}" required autocomplete="off" name="bell{{i}}" value={{delays[i]}} />
+        <fieldset>
+          <legend>Sensor Delays (ms)</legend>
+          {% for i in range(len(delays)) %}
+            <div class="pure-control-group">
+              <label>Bell #{{i + 1}}</label>
+              <input type="text" inputmode="numeric" pattern="[0-9]{1,3}" required autocomplete="off" name="bell{{i}}" value={{delays[i]}} />
+            </div>
+          {% endfor %}
+          <div class="pure-controls">
+            <button name="action" value="ok" type="submit" class="pure-button pure-button-primary">OK</button>
+            <button name="action" value="cancel" type="submit" class="pure-button pure-button-secondary">Cancel</button>
           </div>
-        {% endfor %}
-        <div class="pure-controls">
-          <button name="action" value="ok" type="submit" class="pure-button pure-button-primary">OK</button>
-          <button name="action" value="cancel" type="reset" class="pure-button pure-button-secondary">Cancel</button>
-        </div>
+        </fieldset>
       </form>
     </div>
   </body>
