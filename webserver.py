@@ -55,13 +55,13 @@ async def set_delays(request):
 @app.get("/download")
 async def download(request):
     log_dir = request.args.get("log")
-    with tarfile.TarFile("log.tar", "w") as tf:
+    with tarfile.TarFile("logs/log.tar", "w") as tf:
         for filename in os.listdir("logs/{}".format(log_dir)):
             tf.addfile(
                 tarfile.TarInfo(filename), open("logs/{}/{}".format(log_dir, filename))
             )
 
-    response = send_file("log.tar", content_type="application/x-tar")
+    response = send_file("logs/log.tar", content_type="application/x-tar")
     response.headers["Content-Disposition"] = 'attachment; filename="log.tar"'
 
     return response
