@@ -6,6 +6,8 @@ from microdot.utemplate import Template
 
 S_IFDIR = 0x4000
 
+LOG_DIR = "log/"
+
 delays = [100, 200, 300, 400, 500, 600]
 
 app = Microdot()
@@ -14,13 +16,15 @@ Response.default_content_type = "text/html"
 
 @app.route("/")
 async def index(request):
-    statvfs = os.statvfs(".")
+    statvfs = os.statvfs("/")
     free = statvfs[0] * statvfs[4]
 
-    dirs = list(filter(lambda d: os.stat("logs/" + d)[0] & S_IFDIR, os.listdir("logs")))
+    dirs = list(
+        filter(lambda d: os.stat(LOG_DIR + d)[0] & S_IFDIR, os.listdir(LOG_DIR))
+    )
     dirs.sort()
 
-    logcounts = [len(os.listdir("logs/" + d)) for d in dirs]
+    logcounts = [len(os.listdir(LOG_DIR + d)) for d in dirs]
 
     return Template("index.tpl").render(dirs=dirs, logcounts=logcounts, free=free)
 
@@ -55,13 +59,10 @@ async def set_delays(request):
 @app.get("/download")
 async def download(request):
     log_dir = request.args.get("log")
-    with tarfile.TarFile("logs/log.tar", "w") as tf:
-        for filename in os.listdir("logs/{}".format(log_dir)):
-            tf.addfile(
-                tarfile.TarInfo(filename), open("logs/{}/{}".format(log_dir, filename))
-            )
+    with tarfile.TarFile(LOG_DIR + "log.tar", "w") as tf:
+        tf.add(LOG_DIR + log_dir)
 
-    response = send_file("logs/log.tar", content_type="application/x-tar")
+    response = send_file(LOG_DIR + "log.tar", content_type="application/x-tar")
     response.headers["Content-Disposition"] = 'attachment; filename="log.tar"'
 
     return response
