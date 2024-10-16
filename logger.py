@@ -5,7 +5,7 @@ import os
 READ_TIMEOUT = 5
 
 # Number of archive log directories
-MAX_ARCHIVES = 10
+MAX_ARCHIVES = 5
 
 S_IFDIR = 0x4000
 
