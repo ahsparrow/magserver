@@ -60,7 +60,16 @@ async def set_delays(request):
 async def download(request):
     log_dir = request.args.get("log")
     with tarfile.TarFile(LOG_DIR + "log.tar", "w") as tf:
-        tf.add(LOG_DIR + log_dir)
+        for log in os.listdir(LOG_DIR + log_dir):
+            filename = LOG_DIR + "{}/{}".format(log_dir, log)
+            stat = os.stat(filename)
+
+            tarinfo = tarfile.TarInfo(log)
+            tarinfo.uid = stat[4]
+            tarinfo.gid = stat[5]
+            tarinfo.size = stat[6]
+            tarinfo.mtime = stat[8]
+            tf.addfile(tarinfo, open(filename))
 
     response = send_file(LOG_DIR + "log.tar", content_type="application/x-tar")
     response.headers["Content-Disposition"] = 'attachment; filename="log.tar"'
