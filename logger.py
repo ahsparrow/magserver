@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 
 # End of touch timeout
 READ_TIMEOUT = 5
@@ -25,17 +26,28 @@ class Logger:
         while True:
             try:
                 data = await asyncio.wait_for(self.reader.readline(), READ_TIMEOUT)
+                print(data)
+
+                data = data.split(b",")
+                if data[0] == b"B":
+                    print("xxx")
+                    if not self.log_file:
+                        self.start = int(data[2])
+                        self.start_log()
+
+                    self.log_file.write(
+                        ",".join(
+                            [
+                                data[1].decode(),
+                                str(time.ticks_diff(int(data[2]), self.start)),
+                            ]
+                        )
+                    )
+                    self.log_file.write("\n")
+
             except asyncio.TimeoutError:
                 print("timeout")
-                data = ""
 
-            if data:
-                if not self.log_file:
-                    self.start_log()
-
-                self.log_file.write(data)
-
-            else:
                 if self.log_file:
                     self.log_file.close()
                     self.log_file = None
@@ -47,7 +59,7 @@ class Logger:
 
         self.log_count += 1
 
-        filename = self.log_path("log", "touch_{:02d}.txt".format(self.log_count))
+        filename = self.log_path("log", "touch_{:02d}.csv".format(self.log_count))
         self.log_file = open(filename, "wt")
 
     # Rotate (and delete) archive directories
@@ -71,11 +83,11 @@ class Logger:
             base, ind = d.split(".")
             os.rename(
                 self.log_path(d),
-                self.log_path("log.{:02d}".format(int(ind) + 1)),
+                self.log_path("old-log.{}".format(int(ind) + 1)),
             )
 
         # Archive current log dir and create a new one
-        os.rename(self.log_path("log"), self.log_path("log.01"))
+        os.rename(self.log_path("log"), self.log_path("old-log.1"))
         os.mkdir(self.log_path("log"))
 
     # Make full path of log dirs and files
@@ -84,14 +96,14 @@ class Logger:
 
     # Get free bytes on file system
     def get_vfs_free(self):
-        stat = os.statvfs(self.root_dir)
+        stat = os.statvfs("/")
 
         # f_bsize (block size) * f_bavail (free blocks for unprivilegded users)
         return stat[0] * stat[4]
 
     # File system size
     def get_vfs_size(self):
-        stat = os.statvfs(self.root_dir)
+        stat = os.statvfs("/")
 
         # f_bsize(block size) * f_blocks (number of blocks)
         return stat[0] * stat[2]
