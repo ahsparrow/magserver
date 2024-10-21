@@ -1,83 +1,57 @@
-import os
-import tarfile
+import asyncio
 
 from microdot import Microdot, Response, redirect, send_file
 from microdot.utemplate import Template
 
-S_IFDIR = 0x4000
-
-LOG_DIR = "log/"
-
-delays = [100, 200, 300, 400, 500, 600]
-
-app = Microdot()
 Response.default_content_type = "text/html"
 
 
-@app.route("/")
-async def index(request):
-    statvfs = os.statvfs("/")
-    free = statvfs[0] * statvfs[4]
+def create_app(logger):
+    app = Microdot()
 
-    dirs = list(
-        filter(lambda d: os.stat(LOG_DIR + d)[0] & S_IFDIR, os.listdir(LOG_DIR))
-    )
-    dirs.sort()
+    @app.route("/")
+    async def index(request):
+        log_info = logger.get_log_info()
+        dirs, logcounts = list(zip(*log_info))
 
-    logcounts = [len(os.listdir(LOG_DIR + d)) for d in dirs]
+        return Template("index.tpl").render(
+            dirs=dirs, logcounts=logcounts, free=logger.get_vfs_free()
+        )
 
-    return Template("index.tpl").render(dirs=dirs, logcounts=logcounts, free=free)
+    @app.route("/static/<path:path>")
+    async def static(request, path):
+        if ".." in path:
+            # directory traversal is not allowed
+            return "Not found", 404
+        return send_file("static/" + path, max_age=86400)
 
+    @app.get("/delays")
+    async def get_delays(request):
+        try:
+            delays = await asyncio.wait_for(logger.get_delays(), 1)
+            return Template("delays.tpl").render(delays=delays)
+        except asyncio.TimeoutError:
+            return "Timeout waiting for delays from logger", 500
 
-@app.route("/static/<path:path>")
-async def static(request, path):
-    if ".." in path:
-        # directory traversal is not allowed
-        return "Not found", 404
-    return send_file("static/" + path, max_age=86400)
+    @app.post("/delays")
+    async def set_delays(request):
+        if request.form["action"] == "ok":
+            delays = [
+                request.form.get("bell{}".format(i))
+                for i in range(len(request.form) - 1)
+            ]
+            await logger.set_delays(delays)
 
+        return redirect("/delays")
 
-@app.get("/delays")
-async def get_delays(request):
-    return Template("delays.tpl").render(delays=delays)
+    @app.get("/download")
+    async def download(request):
+        log_dir = request.args.get("log")
+        tarfile = logger.make_tar(log_dir)
 
+        response = send_file(tarfile, content_type="application/x-tar")
+        response.headers["Content-Disposition"] = 'attachment; filename="log.tar"'
 
-@app.post("/delays")
-async def set_delays(request):
-    global delays
-    if request.form["action"] == "ok":
-        delays = [
-            request.form.get("bell{}".format(i)) for i in range(len(request.form) - 1)
-        ]
-        print(delays)
-    else:
-        delays = [100, 200, 300, 400, 500, 600]
+        return response
 
-    return redirect("/delays")
-
-
-@app.get("/download")
-async def download(request):
-    log_dir = request.args.get("log")
-    with tarfile.TarFile(LOG_DIR + "log.tar", "w") as tf:
-        for log in os.listdir(LOG_DIR + log_dir):
-            filename = LOG_DIR + "{}/{}".format(log_dir, log)
-            stat = os.stat(filename)
-
-            tarinfo = tarfile.TarInfo(log)
-            tarinfo.uid = stat[4]
-            tarinfo.gid = stat[5]
-            tarinfo.size = stat[6]
-            tarinfo.mtime = stat[8]
-            tf.addfile(tarinfo, open(filename))
-
-    response = send_file(LOG_DIR + "log.tar", content_type="application/x-tar")
-    response.headers["Content-Disposition"] = 'attachment; filename="log.tar"'
-
-    return response
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(app.start_server(host="0.0.0.0", port=5000))
+    return app

@@ -1,5 +1,7 @@
 import asyncio
+import asyncio.stream
 import os
+import tarfile
 import time
 
 # End of touch timeout
@@ -13,7 +15,7 @@ S_IFDIR = 0x4000
 
 class Logger:
     def __init__(self, uart, root_dir):
-        self.reader = asyncio.StreamReader(uart)
+        self.uart_stream = asyncio.stream.Stream(uart)
         self.root_dir = root_dir
 
         self.log_count = 0
@@ -21,16 +23,16 @@ class Logger:
 
         self.vfs_size = self.get_vfs_size()
 
+        self.event = asyncio.Event()
+
     # Main logging loop
     async def log(self):
         while True:
             try:
-                data = await asyncio.wait_for(self.reader.readline(), READ_TIMEOUT)
-                print(data)
+                data = await asyncio.wait_for(self.uart_stream.readline(), READ_TIMEOUT)
 
                 data = data.split(b",")
                 if data[0] == b"B":
-                    print("xxx")
                     if not self.log_file:
                         self.start = int(data[2])
                         self.start_log()
@@ -45,9 +47,11 @@ class Logger:
                     )
                     self.log_file.write("\n")
 
-            except asyncio.TimeoutError:
-                print("timeout")
+                elif data[0] == b"D":
+                    self.delays = [int(d) for d in data[1:]]
+                    self.event.set()
 
+            except asyncio.TimeoutError:
                 if self.log_file:
                     self.log_file.close()
                     self.log_file = None
@@ -126,9 +130,48 @@ class Logger:
 
         os.rmdir(log_path)
 
+    def get_log_info(self):
+        log_dirs = self.get_archive_dirs()
+        log_dirs.sort()
+        log_dirs.insert(0, "log")
 
-# import machine
-# uart = machine.UART(1, tx=4, rx=5)
-# logger = Logger(uart, "/log")
+        log_counts = [len(os.listdir(self.log_path(d))) for d in log_dirs]
+        return zip(log_dirs, log_counts)
 
-# asyncio.run(logger.log())
+    def make_tar(self, log_dir):
+        tar_path = self.log_path("download.tar")
+        with tarfile.TarFile(tar_path, "w") as tf:
+            for log in os.listdir(self.log_path(log_dir)):
+                filename = self.log_path(log_dir, log)
+                stat = os.stat(filename)
+
+                tarinfo = tarfile.TarInfo(log)
+                tarinfo.uid = stat[4]
+                tarinfo.gid = stat[5]
+                tarinfo.size = stat[6]
+                tarinfo.mtime = stat[8]
+                with open(filename) as f:
+                    tf.addfile(tarinfo, f)
+
+        return tar_path
+
+    # Get bell delays from CAN interface
+    async def get_delays(self):
+        self.event.clear()
+
+        # Send request
+        self.uart_stream.write(b"G\n")
+        await self.uart_stream.drain()
+
+        # Wait for response
+        await self.event.wait()
+        return self.delays
+
+    # Send new bell delays to CAN interface
+    async def set_delays(self, delays):
+        self.delays = delays
+
+        self.uart_stream.write(b"D,")
+        self.uart_stream.write(b",".join(str(d).encode() for d in self.delays))
+        self.uart_stream.write(b"\n")
+        await self.uart_stream.drain()
