@@ -10,6 +10,9 @@ READ_TIMEOUT = 5
 # Number of archive log directories
 MAX_ARCHIVES = 5
 
+# Minimum number of strikes to record
+MIN_STRIKES = 50
+
 S_IFDIR = 0x4000
 
 
@@ -17,6 +20,8 @@ class Logger:
     def __init__(self, uart, root_dir):
         self.uart_stream = asyncio.stream.Stream(uart)
         self.root_dir = root_dir
+
+        self.strike_count = 0
 
         self.log_count = 0
         self.log_file = None
@@ -33,28 +38,31 @@ class Logger:
 
                 data = data.split(b",")
                 if data[0] == b"B":
+                    # Bell strike data
                     if not self.log_file:
-                        self.start = int(data[2])
+                        self.start_ticks = int(data[2])
                         self.start_log()
 
                     self.log_file.write(
                         ",".join(
                             [
                                 data[1].decode(),
-                                str(time.ticks_diff(int(data[2]), self.start)),
+                                str(time.ticks_diff(int(data[2]), self.start_ticks)),
                             ]
                         )
                     )
                     self.log_file.write("\n")
 
+                    self.strike_count += 1
+
                 elif data[0] == b"D":
+                    # Reply to delay query request
                     self.delays = [int(d) for d in data[1:]]
                     self.event.set()
 
             except asyncio.TimeoutError:
                 if self.log_file:
-                    self.log_file.close()
-                    self.log_file = None
+                    self.stop_log()
 
     # Start a new log file
     def start_log(self):
@@ -62,9 +70,20 @@ class Logger:
             self.rotate_logs()
 
         self.log_count += 1
+        self.log_file = open(self.touch_file(), "wt")
 
-        filename = self.log_path("log", "touch_{:02d}.csv".format(self.log_count))
-        self.log_file = open(filename, "wt")
+        self.strike_count = 0
+
+    def stop_log(self):
+        self.log_file.close()
+        self.log_file = None
+
+        if self.strike_count < MIN_STRIKES:
+            os.remove(self.touch_file())
+            self.log_count -= 1
+
+    def touch_file(self):
+        return self.log_path("log", "touch_{:02d}.csv".format(self.log_count))
 
     # Rotate (and delete) archive directories
     def rotate_logs(self):
@@ -76,7 +95,7 @@ class Logger:
         # are more than MAX_ARCHIVES
         for dir in sorted(self.get_archive_dirs(), reverse=True):
             if (self.get_vfs_free() < self.vfs_size / 2) or (
-                int(dir[-2:]) > MAX_ARCHIVES - 1
+                int(dir[-1:]) > MAX_ARCHIVES - 1
             ):
                 self.delete_archive_dir(dir)
 
@@ -112,12 +131,12 @@ class Logger:
         # f_bsize(block size) * f_blocks (number of blocks)
         return stat[0] * stat[2]
 
-    # Get archive log directories (ending in two digit number)
+    # Get archive log directories (ending in single digit number)
     def get_archive_dirs(self):
         return list(
             filter(
                 lambda x: (os.stat(self.log_path(x))[0] & S_IFDIR != 0)
-                and x[-2:].isdigit(),
+                and x[-1:].isdigit(),
                 os.listdir(self.root_dir),
             )
         )
