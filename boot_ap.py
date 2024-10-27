@@ -15,21 +15,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asyncio
-import machine
+# Configure the board as a wireless access point
 
-import webserver
-import logger
+import network
 
+network.hostname("canbell")
 
-async def start():
-    uart = machine.UART(1, tx=4, rx=5)
-    log = logger.Logger(uart, "log")
+station = network.WLAN(network.AP_IF)
+station.config(ssid="canbell", password="plainbob")
+station.active(True)
 
-    app = webserver.create_app(log)
-    ws = app.start_server(port=80)
-
-    await asyncio.gather(ws, log.log())
-
-
-asyncio.run(start())
+print(station.ifconfig())

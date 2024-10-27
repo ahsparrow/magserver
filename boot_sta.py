@@ -15,21 +15,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import asyncio
-import machine
+# Configure the board as a wireless station interface
 
-import webserver
-import logger
+import network
 
+import secrets
 
-async def start():
-    uart = machine.UART(1, tx=4, rx=5)
-    log = logger.Logger(uart, "log")
+station = network.WLAN(network.STA_IF)
+if station.isconnected():
+    print("Already connected")
 
-    app = webserver.create_app(log)
-    ws = app.start_server(port=80)
+else:
+    network.hostname("canbell")
 
-    await asyncio.gather(ws, log.log())
+    station.active(True)
+    station.connect(secrets.SSID, secrets.PASSWORD)
+    print("Connecting to {}...".format(secrets.SSID))
 
+    while not station.isconnected():
+        pass
 
-asyncio.run(start())
+    print("Connected")
+
+print(station.ifconfig())
