@@ -7,8 +7,10 @@ files="
   logger.py
   webserver.py
   microdot/__init__.py
+  microdot/helpers.py
   microdot/microdot.py 
   microdot/utemplate.py
+  microdot/websocket.py
   static/pure-min.css
   static/style.css
   templates/delays.tpl

@@ -73,6 +73,9 @@ class Logger:
                 if self.log_file:
                     self.stop_log()
 
+    def get_status(self):
+        return "idle" if self.log_file is None else "logging"
+
     # Start a new log file
     def start_log(self):
         if self.log_count == 0:

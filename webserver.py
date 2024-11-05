@@ -2,6 +2,7 @@ import asyncio
 
 from microdot import Microdot, Response, redirect, send_file
 from microdot.utemplate import Template
+from microdot.websocket import with_websocket
 
 Response.default_content_type = "text/html"
 
@@ -65,5 +66,25 @@ def create_app(logger):
             200,
             {"Content-Type": "text/plain"},
         )
+
+    @app.get("/status")
+    @with_websocket
+    async def status(response, ws):
+        log_status = logger.get_status()
+        await ws.send(log_status)
+
+        # Poll logger status
+        while True:
+            new_log_status = logger.get_status()
+            if log_status != new_log_status:
+                log_status = new_log_status
+
+                await ws.send(log_status)
+
+            # Do (dummy) receive to handle keep-alive pings
+            try:
+                await asyncio.wait_for(ws.receive(), 1)
+            except asyncio.TimeoutError:
+                pass
 
     return app
