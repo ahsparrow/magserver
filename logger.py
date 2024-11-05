@@ -11,7 +11,7 @@ READ_TIMEOUT = 5
 MAX_ARCHIVES = 5
 
 # Minimum number of strikes to record
-MIN_STRIKES = 50
+MIN_STRIKES = 60
 
 S_IFDIR = 0x4000
 
@@ -22,6 +22,7 @@ class Logger:
         self.root_dir = root_dir
 
         self.strike_count = 0
+        self.bell_set = set()
 
         self.log_count = 0
         self.log_file = None
@@ -29,6 +30,8 @@ class Logger:
         self.vfs_size = self.get_vfs_size()
 
         self.event = asyncio.Event()
+
+        self.catalog_file = self.log_path("log", "_logcat.csv")
 
     # Main logging loop
     async def log(self):
@@ -38,22 +41,28 @@ class Logger:
 
                 data = data.split(b",")
                 if data[0] == b"B":
+                    bell = data[1].decode()
+
                     # Bell strike data
                     if not self.log_file:
-                        self.start_ticks = int(data[2])
                         self.start_log()
 
                     self.log_file.write(
                         ",".join(
                             [
-                                data[1].decode(),
-                                str(time.ticks_diff(int(data[2]), self.start_ticks)),
+                                bell,
+                                str(
+                                    time.ticks_diff(
+                                        int(data[2]), self.touch_start_ticks
+                                    )
+                                ),
                             ]
                         )
                     )
                     self.log_file.write("\n")
 
                     self.strike_count += 1
+                    self.bell_set.add(bell)
 
                 elif data[0] == b"D":
                     # Reply to delay query request
@@ -67,21 +76,50 @@ class Logger:
     # Start a new log file
     def start_log(self):
         if self.log_count == 0:
-            self.rotate_logs()
+            self.start_session()
 
         self.log_count += 1
+
+        # Open new touch file and write header
         self.log_file = open(self.touch_file(), "wt")
+        self.log_file.write("bell,ticks_ms\n")
 
+        # Reset touch info variables
         self.strike_count = 0
+        self.bell_set.clear()
+        self.touch_start_ticks = time.ticks_diff(
+            time.ticks_ms(), self.session_start_ticks
+        )
 
+    # Stop logging
     def stop_log(self):
+        # Close touch file
         self.log_file.close()
         self.log_file = None
 
         if self.strike_count < MIN_STRIKES:
+            # Discard very short touches
             os.remove(self.touch_file())
             self.log_count -= 1
+        else:
+            # Update touch catalog
+            with open(self.catalog_file, "at") as f:
+                nrows = self.strike_count // len(self.bell_set)
+                f.write(
+                    "{},{},{}\n".format(self.log_count, nrows, self.touch_start_ticks)
+                )
 
+    # Start new logging session
+    def start_session(self):
+        self.rotate_logs()
+
+        # Create new catalog and write header
+        with open(self.catalog_file, "wt") as f:
+            f.write("touch,rows,start_ticks_ms\n")
+
+        self.session_start_ticks = time.ticks_ms()
+
+    # Path of current touch log
     def touch_file(self):
         return self.log_path("log", "touch_{:02d}.csv".format(self.log_count))
 
@@ -149,13 +187,38 @@ class Logger:
 
         os.rmdir(log_path)
 
+    # Get number of touches in each log dir
     def get_log_info(self):
         log_dirs = self.get_archive_dirs()
         log_dirs.sort()
         log_dirs.insert(0, "log")
 
-        log_counts = [len(os.listdir(self.log_path(d))) for d in log_dirs]
+        # Count touch logs
+        log_counts = [
+            sum(1 for f in os.listdir(self.log_path(d)) if f.startswith("touch"))
+            for d in log_dirs
+        ]
+
         return zip(log_dirs, log_counts)
+
+    # Get current log catalog
+    def get_catalog(self):
+        with open(self.catalog_file, "rt") as catfile:
+            return catfile.read()
+
+    # Get touch data. Use generator to avoid memory issues
+    async def get_touch_data(self, touch_num, chunksize=1024):
+        filename = self.log_path("log", "touch_{:02d}.csv".format(touch_num))
+
+        try:
+            with open(filename) as f:
+                while True:
+                    data = f.read(chunksize)
+                    if not data:
+                        break
+                    yield data
+        except OSError:
+            yield ""
 
     def make_tar(self, log_dir):
         tar_path = self.log_path("download.tar")

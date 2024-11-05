@@ -54,4 +54,16 @@ def create_app(logger):
 
         return response
 
+    @app.get("/log")
+    async def get_log_catalog(request):
+        return logger.get_catalog(), 200, {"Content-Type": "text/plain"}
+
+    @app.get("/log/<touch_num>")
+    async def get_touch_data(request, touch_num):
+        return (
+            logger.get_touch_data(int(touch_num)),
+            200,
+            {"Content-Type": "text/plain"},
+        )
+
     return app
