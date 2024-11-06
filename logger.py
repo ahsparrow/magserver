@@ -24,7 +24,7 @@ class Logger:
         self.strike_count = 0
         self.bell_set = set()
 
-        self.log_count = 0
+        self.touch_count = 0
         self.log_file = None
 
         self.vfs_size = self.get_vfs_size()
@@ -45,13 +45,12 @@ class Logger:
                 data = data.split(b",")
                 if data[0] == b"B":
                     # Bell strike data
+                    bell = data[1].decode()
+                    strike_ticks = int(data[2].decode())
 
                     if not self.log_file:
                         # Start new log
                         self.start_log()
-
-                    bell = data[1].decode()
-                    strike_ticks = int(data[2].decode())
 
                     delta_ticks = time.ticks_diff(strike_ticks, self.touch_start_ticks)
                     log = "{},{}\n".format(bell, delta_ticks)
@@ -74,10 +73,10 @@ class Logger:
 
     # Start a new log file
     def start_log(self):
-        if self.log_count == 0:
+        if self.touch_count == 0:
             self.session_start_ticks = time.ticks_ms()
 
-        self.log_count += 1
+        self.touch_count += 1
 
         # Open new touch file and write header
         self.log_file = open(self.touch_file(), "wt")
@@ -99,13 +98,13 @@ class Logger:
         if self.strike_count < MIN_STRIKES:
             # Discard very short touches
             os.remove(self.touch_file())
-            self.log_count -= 1
+            self.touch_count -= 1
         else:
             # Update touch catalog
             with open(self.catalog_file, "at") as f:
                 nrows = self.strike_count // len(self.bell_set)
                 f.write(
-                    "{},{},{}\n".format(self.log_count, nrows, self.touch_start_ticks)
+                    "{},{},{}\n".format(self.touch_count, nrows, self.touch_start_ticks)
                 )
 
     # Rotate (and delete) archive directories
@@ -143,9 +142,12 @@ class Logger:
         with open(self.catalog_file, "wt") as f:
             f.write("touch,rows,start_ticks_ms\n")
 
+        # Reset touch count
+        self.touch_count = 0
+
     # Path of current touch log
     def touch_file(self):
-        return self.log_path("log", "touch_{:02d}.csv".format(self.log_count))
+        return self.log_path("log", "touch_{:02d}.csv".format(self.touch_count))
 
     # Make full path of log dirs and files
     def log_path(self, *args):
@@ -188,12 +190,12 @@ class Logger:
         log_dirs.insert(0, "log")
 
         # Count touch logs
-        log_counts = [
+        touch_counts = [
             sum(1 for f in os.listdir(self.log_path(d)) if f.startswith("touch"))
             for d in log_dirs
         ]
 
-        return zip(log_dirs, log_counts)
+        return zip(log_dirs, touch_counts)
 
     # Get current log catalog
     def get_catalog(self):
