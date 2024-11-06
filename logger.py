@@ -35,31 +35,27 @@ class Logger:
 
     # Main logging loop
     async def log(self):
+        # Archive existing logs
+        self.rotate_logs()
+
         while True:
             try:
                 data = await asyncio.wait_for(self.uart_stream.readline(), READ_TIMEOUT)
 
                 data = data.split(b",")
                 if data[0] == b"B":
-                    bell = data[1].decode()
-
                     # Bell strike data
+
                     if not self.log_file:
+                        # Start new log
                         self.start_log()
 
-                    self.log_file.write(
-                        ",".join(
-                            [
-                                bell,
-                                str(
-                                    time.ticks_diff(
-                                        int(data[2]), self.touch_start_ticks
-                                    )
-                                ),
-                            ]
-                        )
-                    )
-                    self.log_file.write("\n")
+                    bell = data[1].decode()
+                    strike_ticks = int(data[2].decode())
+
+                    delta_ticks = time.ticks_diff(strike_ticks, self.touch_start_ticks)
+                    log = "{},{}\n".format(bell, delta_ticks)
+                    self.log_file.write(log)
 
                     self.strike_count += 1
                     self.bell_set.add(bell)
@@ -79,7 +75,7 @@ class Logger:
     # Start a new log file
     def start_log(self):
         if self.log_count == 0:
-            self.start_session()
+            self.session_start_ticks = time.ticks_ms()
 
         self.log_count += 1
 
@@ -112,29 +108,18 @@ class Logger:
                     "{},{},{}\n".format(self.log_count, nrows, self.touch_start_ticks)
                 )
 
-    # Start new logging session
-    def start_session(self):
-        self.rotate_logs()
-
-        # Create new catalog and write header
-        with open(self.catalog_file, "wt") as f:
-            f.write("touch,rows,start_ticks_ms\n")
-
-        self.session_start_ticks = time.ticks_ms()
-
-    # Path of current touch log
-    def touch_file(self):
-        return self.log_path("log", "touch_{:02d}.csv".format(self.log_count))
-
     # Rotate (and delete) archive directories
     def rotate_logs(self):
         # Do nothing if current log directory has no entries
-        if len(os.listdir(self.log_path("log"))) == 0:
+        entries = os.listdir(self.log_path("log"))
+        if sum(1 for e in entries if e.startswith("touch")) == 0:
             return
 
         # Delete old archives if less than half the disk space is left or there
         # are more than MAX_ARCHIVES
-        for dir in sorted(self.get_archive_dirs(), reverse=True):
+        dirs = self.get_archive_dirs()
+        dirs.sort(reverse=True)
+        for dir in dirs:
             if (self.get_vfs_free() < self.vfs_size / 2) or (
                 int(dir[-1:]) > MAX_ARCHIVES - 1
             ):
@@ -147,12 +132,20 @@ class Logger:
             base, ind = d.split(".")
             os.rename(
                 self.log_path(d),
-                self.log_path("old-log.{}".format(int(ind) + 1)),
+                self.log_path("{}.{}".format(base, int(ind) + 1)),
             )
 
         # Archive current log dir and create a new one
         os.rename(self.log_path("log"), self.log_path("old-log.1"))
         os.mkdir(self.log_path("log"))
+
+        # Create new catalog and write header
+        with open(self.catalog_file, "wt") as f:
+            f.write("touch,rows,start_ticks_ms\n")
+
+    # Path of current touch log
+    def touch_file(self):
+        return self.log_path("log", "touch_{:02d}.csv".format(self.log_count))
 
     # Make full path of log dirs and files
     def log_path(self, *args):
@@ -174,13 +167,11 @@ class Logger:
 
     # Get archive log directories (ending in single digit number)
     def get_archive_dirs(self):
-        return list(
-            filter(
-                lambda x: (os.stat(self.log_path(x))[0] & S_IFDIR != 0)
-                and x[-1:].isdigit(),
-                os.listdir(self.root_dir),
-            )
-        )
+        return [
+            d[0]
+            for d in os.ilistdir(self.root_dir)
+            if d[1] & S_IFDIR and d[0][-1].isdigit()
+        ]
 
     # Delete an archive directory
     def delete_archive_dir(self, dir):
@@ -211,7 +202,14 @@ class Logger:
 
     # Get touch data. Use generator to avoid memory issues
     async def get_touch_data(self, touch_num, chunksize=1024):
-        filename = self.log_path("log", "touch_{:02d}.csv".format(touch_num))
+        if touch_num == 0:
+            # Get newest touch from current log directory
+            logs = [
+                d for d in os.listdir(self.log_path("log")) if d.startswith("touch")
+            ]
+            filename = sorted(logs)[-1]
+        else:
+            filename = self.log_path("log", "touch_{:02d}.csv".format(touch_num))
 
         try:
             with open(filename) as f:
