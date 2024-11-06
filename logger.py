@@ -2,7 +2,8 @@ import asyncio
 import asyncio.stream
 import os
 import tarfile
-import time
+
+from time import ticks_diff, time
 
 # End of touch timeout
 READ_TIMEOUT = 5
@@ -27,6 +28,10 @@ class Logger:
         self.touch_count = 0
         self.log_file = None
 
+        self.touch_start_ticks = 0
+
+        self.touch_end_time = time()
+
         self.vfs_size = self.get_vfs_size()
 
         self.event = asyncio.Event()
@@ -49,10 +54,14 @@ class Logger:
                     strike_ticks = int(data[2].decode())
 
                     if not self.log_file:
-                        # Start new log
-                        self.start_log()
+                        # Rotate logs if > 12 hours since last touch
+                        if (time() - self.touch_end_time) > 3600 * 12:
+                            self.rotate_logs()
 
-                    delta_ticks = time.ticks_diff(strike_ticks, self.touch_start_ticks)
+                        # Start new log
+                        self.start_log(strike_ticks)
+
+                    delta_ticks = ticks_diff(strike_ticks, self.touch_start_ticks)
                     log = "{},{}\n".format(bell, delta_ticks)
                     self.log_file.write(log)
 
@@ -66,15 +75,16 @@ class Logger:
 
             except asyncio.TimeoutError:
                 if self.log_file:
+                    self.touch_end_time = time()
                     self.stop_log()
 
     def get_status(self):
         return "idle" if self.log_file is None else "logging"
 
     # Start a new log file
-    def start_log(self):
+    def start_log(self, start_ticks):
         if self.touch_count == 0:
-            self.session_start_ticks = time.ticks_ms()
+            self.session_start_ticks = start_ticks
 
         self.touch_count += 1
 
@@ -85,9 +95,7 @@ class Logger:
         # Reset touch info variables
         self.strike_count = 0
         self.bell_set.clear()
-        self.touch_start_ticks = time.ticks_diff(
-            time.ticks_ms(), self.session_start_ticks
-        )
+        self.touch_start_ticks = ticks_diff(start_ticks, self.session_start_ticks)
 
     # Stop logging
     def stop_log(self):
