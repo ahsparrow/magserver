@@ -48,5 +48,9 @@ done
 # Set WiFi access point
 mpremote connect $1 cp boot_ap.py :boot.py
 
+# Set WiFi station
+# mpremote connect $1 cp boot_sta.py :boot.py
+# mpremote connect $1 cp secrets.py :secrets.py
+
 # Reboot
 mpremote connect $1 reset
