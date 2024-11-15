@@ -40,9 +40,6 @@ class Logger:
 
     # Main logging loop
     async def log(self):
-        # Archive existing logs
-        self.rotate_logs()
-
         while True:
             try:
                 data = await asyncio.wait_for(self.uart_stream.readline(), READ_TIMEOUT)
@@ -55,7 +52,10 @@ class Logger:
 
                     if not self.log_file:
                         # Rotate logs if > 12 hours since last touch
-                        if (time() - self.touch_end_time) > 3600 * 12:
+                        if (
+                            self.touch_count == 0
+                            or (time() - self.touch_end_time) > 3600 * 12
+                        ):
                             self.rotate_logs()
 
                         # Start new log
