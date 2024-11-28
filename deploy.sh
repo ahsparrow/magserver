@@ -29,7 +29,7 @@ if [ $# -ne 1 ]; then
 fi
 
 # Create new file system (from micropython/ports/rp2/modules/_boot.py)
-mpremote connect $1 exec "import rp2; import vfs; vfs.umount('/'); bdev=rp2.Flash(); vfs.VfsLfs2.mkfs(bdev, progsize=256); fs=vfs.VfsLfs2(bdev, progsize=254); vfs.mount(fs, '/')"
+mpremote connect $1 exec "import rp2; import vfs; vfs.umount('/'); bdev=rp2.Flash(); vfs.VfsLfs2.mkfs(bdev, progsize=256); fs=vfs.VfsLfs2(bdev, progsize=256); vfs.mount(fs, '/')"
 
 # Add libraries
 mpremote connect $1 mip install tarfile
