@@ -11,6 +11,9 @@ READ_TIMEOUT = 5
 # Number of archive log directories
 MAX_ARCHIVES = 5
 
+# Sufficient space for a peal
+MIN_VFS_SPACE = 500000
+
 # Minimum number of strikes to record
 MIN_STRIKES = 60
 
@@ -29,10 +32,7 @@ class Logger:
         self.log_file = None
 
         self.touch_start_ticks = 0
-
         self.touch_end_time = time()
-
-        self.vfs_size = self.get_vfs_size()
 
         self.event = asyncio.Event()
 
@@ -127,9 +127,7 @@ class Logger:
         dirs = self.get_archive_dirs()
         dirs.sort(reverse=True)
         for dir in dirs:
-            if (self.get_vfs_free() < self.vfs_size / 2) or (
-                int(dir[-1:]) > MAX_ARCHIVES - 1
-            ):
+            if self.get_vfs_free() < MIN_VFS_SPACE or int(dir[-1:]) > MAX_ARCHIVES - 1:
                 self.delete_archive_dir(dir)
 
         # Rotate archive dirs
