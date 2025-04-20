@@ -71,7 +71,7 @@ def create_app(logger):
     @with_websocket
     async def status(response, ws):
         log_status = logger.get_status()
-        await ws.send(log_status)
+        await ws.send(log_status_msg())
 
         # Poll logger status
         while True:
@@ -79,12 +79,18 @@ def create_app(logger):
             if log_status != new_log_status:
                 log_status = new_log_status
 
-                await ws.send(log_status)
+                await ws.send(log_status_msg())
 
             # Do (dummy) receive to handle keep-alive pings
             try:
                 await asyncio.wait_for(ws.receive(), 1)
             except asyncio.TimeoutError:
                 pass
+
+    def log_status_msg():
+        if logger.get_status() == "logging":
+            return "start"
+        else:
+            return f"stop,{logger.touch_count}"
 
     return app
